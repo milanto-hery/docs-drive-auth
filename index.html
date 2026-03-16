@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Drive OAuth 2.0 Auth Guide | Bioacoustic Edge Sync</title>
+    <meta name="description" content="Step-by-step visual guide to configure Google Drive OAuth 2.0 credentials for your Raspberry Pi bioacoustic monitoring system using PyDrive.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #080e1d;
+            color: #f1f5f9;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism card */
+        .glass {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        /* Animated gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #e879f9 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-size: 300% auto;
+            animation: shift 6s ease infinite;
+        }
+        @keyframes shift {
+            0%  { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100%{ background-position: 0% 50%; }
+        }
+
+        /* Step number badge */
+        .step-badge {
+            width: 48px; height: 48px;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.25rem; font-weight: 800; color: #fff;
+            flex-shrink: 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        /* Screenshot frame */
+        .screenshot-frame {
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            position: relative;
+            background: #fff;
+            transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.35s ease;
+        }
+        .screenshot-frame:hover {
+            transform: translateY(-6px) scale(1.015);
+            box-shadow: 0 22px 50px rgba(56, 189, 248, 0.18);
+        }
+        .screenshot-frame img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Caption tag on screenshot */
+        .screenshot-caption {
+            position: absolute;
+            bottom: 10px; left: 10px;
+            background: rgba(0,0,0,0.75);
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            backdrop-filter: blur(6px);
+            pointer-events: none;
+        }
+
+        /* Red highlight overlay badge */
+        .highlight-badge {
+            position: absolute;
+            top: 10px; right: 10px;
+            background: rgba(239, 68, 68, 0.9);
+            color: #fff;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        /* Step section card hover lift */
+        .step-section {
+            transition: box-shadow 0.35s ease;
+        }
+        .step-section:hover {
+            box-shadow: 0 12px 60px rgba(56, 189, 248, 0.08);
+        }
+
+        /* Code block */
+        .code-block {
+            background: #020817;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            line-height: 1.7;
+        }
+        .code-block pre { margin: 0; padding: 1.5rem; color: #a5f3fc; }
+
+        /* Terminal / inline command */
+        .terminal-line {
+            background: #020817;
+            border: 1px solid rgba(56,189,248,0.2);
+            border-radius: 10px;
+            padding: 14px 20px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #4ade80;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .terminal-line::before {
+            content: "$";
+            color: #475569;
+            font-weight: 700;
+        }
+
+        /* Vertical connector line */
+        .connector {
+            width: 2px;
+            background: linear-gradient(to bottom, rgba(56,189,248,0.5), rgba(129,140,248,0.5));
+            margin: 0 auto;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+        /* Sticky nav */
+        nav {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(8,14,29,0.85);
+            backdrop-filter: blur(14px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* Table of contents dot */
+        .toc-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #334155; flex-shrink: 0;
+            transition: background 0.2s ease;
+        }
+        .toc-item:hover .toc-dot { background: #38bdf8; }
+
+        /* Warning / info callout */
+        .callout {
+            border-left: 3px solid;
+            padding: 12px 16px;
+            border-radius: 0 10px 10px 0;
+            font-size: 0.9rem;
+        }
+        .callout-info { border-color: #38bdf8; background: rgba(56,189,248,0.08); color: #bae6fd; }
+        .callout-warn { border-color: #fb923c; background: rgba(251,146,60,0.08); color: #fed7aa; }
+        .callout-danger { border-color: #f87171; background: rgba(248,113,113,0.08); color: #fecaca; }
+    </style>
+</head>
+<body>
+
+<!-- ======================== AMBIENT GLOW ======================== -->
+<div class="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
+    <div style="position:absolute;top:-8%;left:-8%;width:45%;height:45%;background:radial-gradient(circle,rgba(56,189,248,0.12),transparent 70%);border-radius:50%;"></div>
+    <div style="position:absolute;bottom:-10%;right:-5%;width:40%;height:40%;background:radial-gradient(circle,rgba(129,140,248,0.12),transparent 70%);border-radius:50%;"></div>
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60%;height:40%;background:radial-gradient(circle,rgba(232,121,249,0.05),transparent 70%);border-radius:50%;"></div>
+</div>
+
+<!-- ======================== NAVBAR ======================== -->
+<nav>
+    <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <!-- Icon -->
+            <div style="width:36px;height:36px;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            </div>
+            <span class="text-xl font-bold tracking-tight" style="background:linear-gradient(90deg,#38bdf8,#818cf8);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">Bioacoustic<span style="-webkit-text-fill-color:#94a3b8;font-weight:400;">Edge</span></span>
+        </div>
+        <div class="flex items-center gap-6">
+            <a href="#steps" class="hidden md:block text-sm text-slate-400 hover:text-white transition-colors">Tutorial</a>
+            <a href="#integration" class="hidden md:block text-sm text-slate-400 hover:text-white transition-colors">Code</a>
+            <a href="https://github.com/milanto-hery/bioacoustic-edge-sync" target="_blank"
+               class="flex items-center gap-2 text-sm font-semibold text-white py-2 px-4 rounded-full border border-white/10 hover:border-sky-400/50 hover:bg-sky-400/10 transition-all">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                GitHub
+            </a>
+        </div>
+    </div>
+</nav>
+
+<!-- ======================== HERO ======================== -->
+<header class="max-w-7xl mx-auto px-6 py-28 text-center text-pretty">
+    <div style="display:inline-flex;align-items:center;gap:8px;margin-bottom:20px;padding:6px 16px;border-radius:999px;border:1px solid rgba(56,189,248,0.3);background:rgba(56,189,248,0.08);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+        <span style="font-size:0.75rem;font-weight:700;color:#38bdf8;letter-spacing:0.1em;text-transform:uppercase;">Authentication Guide</span>
+    </div>
+
+    <h1 class="text-6xl md:text-7xl font-extrabold leading-tight mb-6 tracking-tight">
+        Enable Cloud Sync <br>with <span class="gradient-text">Google OAuth 2.0</span>
+    </h1>
+    <p class="text-xl text-slate-400 mb-14 max-w-2xl mx-auto leading-relaxed">
+        A visual, step-by-step tutorial to configure <strong class="text-slate-200">PyDrive credentials</strong> so your Raspberry Pi edge device can autonomously upload bioacoustic recordings to Google Drive.
+    </p>
+
+    <!-- CTA Buttons -->
+    <div class="flex flex-col sm:flex-row justify-center gap-4">
+        <a href="#steps" id="start-tutorial-btn" style="background:linear-gradient(135deg,#0ea5e9,#6366f1);padding:14px 36px;border-radius:999px;font-weight:700;font-size:1rem;color:#fff;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:opacity 0.2s,transform 0.2s;box-shadow:0 6px 30px rgba(14,165,233,0.35);" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            Start Tutorial
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <a href="#integration" style="padding:14px 36px;border-radius:999px;font-weight:600;font-size:1rem;color:#94a3b8;text-decoration:none;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);display:inline-flex;align-items:center;gap:8px;transition:background 0.2s,color 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.08)';this.style.color='#f1f5f9'" onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.color='#94a3b8'">
+            Jump to Code
+        </a>
+    </div>
+</header>
+
+<!-- ======================== STEP OVERVIEW ======================== -->
+<div class="max-w-3xl mx-auto px-6 mb-24">
+    <div class="glass rounded-2xl p-8">
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6 text-center">Implementation Path</p>
+        <div class="grid md:grid-cols-2 gap-x-12 gap-y-4">
+            <a href="#step0" class="toc-item flex items-center gap-3 text-slate-300 hover:text-white transition-colors group no-underline">
+                <div class="toc-dot"></div>
+                <span class="text-sm font-medium"><strong class="text-emerald-400">Step 0</strong> — Prepare Environment</span>
+            </a>
+            <a href="#step1" class="toc-item flex items-center gap-3 text-slate-300 hover:text-white transition-colors group no-underline">
+                <div class="toc-dot"></div>
+                <span class="text-sm font-medium"><strong class="text-sky-400">Step 1</strong> — Create Cloud Project</span>
+            </a>
+            <a href="#step2" class="toc-item flex items-center gap-3 text-slate-300 hover:text-white transition-colors group no-underline">
+                <div class="toc-dot"></div>
+                <span class="text-sm font-medium"><strong class="text-indigo-400">Step 2</strong> — Enable Drive API</span>
+            </a>
+            <a href="#step3" class="toc-item flex items-center gap-3 text-slate-300 hover:text-white transition-colors group no-underline">
+                <div class="toc-dot"></div>
+                <span class="text-sm font-medium"><strong class="text-pink-400">Step 3</strong> — Generate OAuth Key</span>
+            </a>
+            <a href="#integration" class="toc-item flex items-center gap-3 text-slate-300 hover:text-white transition-colors group md:col-span-2 justify-center no-underline mt-2">
+                <div class="toc-dot"></div>
+                <span class="text-sm font-medium"><strong class="text-amber-400">Final Step</strong> — Configuration & Deployment</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- ======================== STEPS ======================== -->
+<main id="steps" class="max-w-[1400px] mx-auto px-6 pb-24 space-y-8">
+
+    <!-- ─── Step 0: Prepare Environment ─── -->
+    <section id="step0" class="step-section glass rounded-3xl overflow-hidden">
+        <div style="background:linear-gradient(90deg,rgba(52,211,153,0.12),transparent);border-bottom:1px solid rgba(52,211,153,0.15);padding:24px 40px;display:flex;align-items:center;gap:16px;">
+            <div class="step-badge" style="background:linear-gradient(135deg,#10b981,#059669);">0</div>
+            <div>
+                <p style="font-size:0.7rem;font-weight:700;color:#10b981;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:2px;">Step 00</p>
+                <h2 style="font-size:1.6rem;font-weight:800;color:#f1f5f9;margin:0;">Clone & Prepare the Repository</h2>
+            </div>
+        </div>
+
+        <div class="grid lg:grid-cols-2 gap-8 p-10">
+            <div class="space-y-6">
+                <p class="text-slate-300 text-lg leading-relaxed">
+                    Before configuring Google Cloud, you need the source code on your local machine or Raspberry Pi. This repository contains the specific <code class="text-emerald-400">config/</code> structure expected by the sync engine.
+                </p>
+
+                <div class="space-y-4">
+                    <p class="text-sm font-bold text-slate-500 uppercase tracking-widest">Run on your Pi / Device:</p>
+                    <div class="terminal-line">git clone https://github.com/milanto-hery/bioacoustic-edge-sync.git</div>
+                    <div class="terminal-line">cd bioacoustic-edge-sync</div>
+                </div>
+
+                <div class="callout callout-info mt-6">
+                    <strong>Note:</strong> All credentials we generate in the next steps <strong>must</strong> be placed inside the <code>config/</code> directory created by this clone.
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <p class="text-sm font-bold text-slate-500 uppercase tracking-widest">Expected Project Structure:</p>
+                <div class="code-block" style="padding: 1.5rem;">
+                    <div class="text-sky-400 font-bold mb-2">bioacoustic-edge-sync/</div>
+                    <div class="pl-4 border-l border-slate-700 space-y-1 text-slate-400">
+                        <div>├── <span class="text-indigo-400">config/</span> <span class="text-slate-600 italic"># ← YOU ARE HERE</span></div>
+                        <div class="pl-4 text-emerald-400">├── client_secrets.json <span class="text-slate-600 italic">(From Step 3)</span></div>
+                        <div class="pl-4 text-emerald-400">├── settings.yaml <span class="text-slate-600 italic">(From Step 4)</span></div>
+                        <div>├── <span class="text-slate-500">src/</span></div>
+                        <div class="pl-4 text-slate-500">└── main.py</div>
+                        <div>└── README.md</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- connector -->
+    <div class="connector h-10 w-0.5 mx-auto opacity-40"></div>
+
+    <!-- ─── Step 1: Create a New Project ─── -->
+    <section id="step1" class="step-section glass rounded-3xl overflow-hidden">
+        <!-- Step header bar -->
+        <div style="background:linear-gradient(90deg,rgba(56,189,248,0.12),transparent);border-bottom:1px solid rgba(56,189,248,0.15);padding:20px 36px;display:flex;align-items:center;gap:16px;">
+            <div class="step-badge" style="background:linear-gradient(135deg,#0ea5e9,#2563eb);">1</div>
+            <div>
+                <p style="font-size:0.7rem;font-weight:700;color:#38bdf8;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:2px;">Step 01</p>
+                <h2 style="font-size:1.6rem;font-weight:800;color:#f1f5f9;margin:0;">Create a New Google Cloud Project</h2>
+            </div>
+        </div>
+
+        <div class="grid lg:grid-cols-2 gap-0 lg:gap-px" style="border-top:0;">
+            <!-- Left: explanation -->
+            <div style="padding:36px;">
+                <p class="text-slate-300 text-lg leading-relaxed mb-6">
+                    Everything starts in the <strong class="text-white">Google Developer Console</strong>. A <em>project</em> is your isolated workspace that will hold all API keys, OAuth credentials, and service configurations.
+                </p>
+
+                <div class="space-y-4 mb-6">
+                    <div class="flex items-start gap-3">
+                        <div style="min-width:26px;height:26px;border-radius:50%;background:rgba(56,189,248,0.15);border:1.5px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#38bdf8;margin-top:2px;">1</div>
+                        <p class="text-slate-300 text-sm leading-relaxed">Go to <a href="https://console.developers.google.com/" target="_blank" class="text-sky-400 underline underline-offset-4 hover:text-sky-300 font-medium">console.developers.google.com</a>.</p>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div style="min-width:26px;height:26px;border-radius:50%;background:rgba(56,189,248,0.15);border:1.5px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#38bdf8;margin-top:2px;">2</div>
+                        <p class="text-slate-300 text-sm leading-relaxed">On the Dashboard, look for the banner that reads <em>"To view this page, select a project."</em></p>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div style="min-width:26px;height:26px;border-radius:50%;background:rgba(56,189,248,0.15);border:1.5px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#38bdf8;margin-top:2px;">3</div>
+                        <p class="text-slate-300 text-sm leading-relaxed">Click <strong class="text-white">CREATE PROJECT</strong> (the blue link, circled in red in the screenshot).</p>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div style="min-width:26px;height:26px;border-radius:50%;background:rgba(56,189,248,0.15);border:1.5px solid rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#38bdf8;margin-top:2px;">4</div>
+                        <p class="text-slate-300 text-sm leading-relaxed">Enter a project name like <code style="background:rgba(56,189,248,0.12);color:#7dd3fc;padding:2px 8px;border-radius:6px;font-size:0.8rem;">bioacoustic-edge</code> and click <strong class="text-white">Create</strong>.</p>
+                    </div>
+                </div>
+
+                <div class="callout callout-info">
+                    <strong>Tip:</strong> Choose a clear project name. You can have multiple projects in one Google account, so name it after your research use case.
+                </div>
+            </div>
+
+            <!-- Right: screenshot -->
+            <div style="padding:28px;display:flex;flex-direction:column;gap:16px;align-items:flex-start;justify-content:center;background:rgba(0,0,0,0.2);">
+                <div class="screenshot-frame w-full">
+                    <img src="assets/createp.png" alt="Google APIs Dashboard with CREATE PROJECT button circled in red">
+                    <div class="screenshot-caption">console.developers.google.com → Dashboard</div>
+                    <div class="highlight-badge">Click here</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- connector -->
+    <div class="connector h-10 w-0.5 mx-auto opacity-40"></div>
+
+    <!-- ─── Step 2: Enable Google Drive API ─── -->
+    <section id="step2" class="step-section glass rounded-3xl overflow-hidden">
+        <div style="background:linear-gradient(90deg,rgba(99,102,241,0.12),transparent);border-bottom:1px solid rgba(99,102,241,0.15);padding:20px 36px;display:flex;align-items:center;gap:16px;">
+            <div class="step-badge" style="background:linear-gradient(135deg,#818cf8,#7c3aed);">2</div>
+            <div>
+                <p style="font-size:0.7rem;font-weight:700;color:#818cf8;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:2px;">Step 02</p>
+                <h2 style="font-size:1.6rem;font-weight:800;color:#f1f5f9;margin:0;">Enable the Google Drive API</h2>
+            </div>
+        </div>
+
+        <div style="padding:36px;">
+            <p class="text-slate-300 text-lg leading-relaxed mb-8">
+                With your project created, you need to explicitly turn on the <strong class="text-white">Google Drive API</strong>. APIs are disabled by default — you only pay for what you activate.
+            </p>
+
+            <!-- 3-column sub-steps with screenshots -->
+            <div class="grid md:grid-cols-3 gap-6">
+
+                <!-- Sub-step 2a -->
+                <div class="space-y-3">
+                    <div class="flex items-center gap-3">
+                        <div style="min-width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#818cf8,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:#fff;">a</div>
+                        <p class="text-sm font-semibold text-slate-200">Click + Enable APIs and Services</p>
+                    </div>
+                    <p class="text-slate-400 text-sm leading-relaxed pl-8">From the APIs & Services Dashboard, click the circled blue button at the top.</p>
+                    <div class="screenshot-frame">
+                        <img src="assets/enable.png" alt="Enable APIs and Services button circled">
+                        <div class="screenshot-caption">APIs & Services → Dashboard</div>
+                        <div class="highlight-badge">Click here</div>
+                    </div>
+                </div>
+
+                <!-- Sub-step 2b -->
+                <div class="space-y-3">
+                    <div class="flex items-center gap-3">
+                        <div style="min-width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#818cf8,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:#fff;">b</div>
+                        <p class="text-sm font-semibold text-slate-200">Search for "Google Drive API"</p>
+                    </div>
+                    <p class="text-slate-400 text-sm leading-relaxed pl-8">You'll land in the API Library. Use the big search bar to find the Drive API.</p>
+                    <div class="screenshot-frame">
+                        <img src="assets/api.png" alt="API Library search bar circled">
+                        <div class="screenshot-caption">API Library → Search</div>
+                    </div>
+                </div>
+
+                <!-- Sub-step 2c -->
+                <div class="space-y-3">
+                    <div class="flex items-center gap-3">
+                        <div style="min-width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#818cf8,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:#fff;">c</div>
+                        <p class="text-sm font-semibold text-slate-200">Click ENABLE</p>
+                    </div>
+                    <p class="text-slate-400 text-sm leading-relaxed pl-8">Open the Google Drive API product page and hit the blue <strong>ENABLE</strong> button.</p>
+                    <div class="screenshot-frame">
+                        <img src="assets/enableAPI.png" alt="Google Drive API product page with ENABLE button circled">
+                        <div class="screenshot-caption">Google Drive API → Enable</div>
+                        <div class="highlight-badge">Click here</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- connector -->
+    <div class="connector h-10 w-0.5 mx-auto opacity-40"></div>
+
+    <!-- ─── Step 3: Generate OAuth Credentials ─── -->
+    <section id="step3" class="step-section glass rounded-3xl overflow-hidden">
+        <div style="background:linear-gradient(90deg,rgba(232,121,249,0.1),transparent);border-bottom:1px solid rgba(232,121,249,0.15);padding:20px 36px;display:flex;align-items:center;gap:16px;">
+            <div class="step-badge" style="background:linear-gradient(135deg,#e879f9,#9333ea);">3</div>
+            <div>
+                <p style="font-size:0.7rem;font-weight:700;color:#e879f9;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:2px;">Step 03</p>
+                <h2 style="font-size:1.6rem;font-weight:800;color:#f1f5f9;margin:0;">Generate OAuth 2.0 Credentials</h2>
+            </div>
+        </div>
+
+        <div style="padding:36px;">
+            <p class="text-slate-300 text-lg leading-relaxed mb-3">
+                You need to create an <strong class="text-white">OAuth 2.0 Client ID</strong> — the "identity card" your Python script uses to prove itself to Google.
+            </p>
+            <div class="callout callout-warn mb-8">
+                <strong>Important:</strong> You must choose <strong>Desktop app</strong> as the Application Type, NOT "Web application". This is the only type that works for headless/terminal-based PyDrive flows.
+            </div>
+
+            <!-- 2x2 grid of sub-steps -->
+            <div class="grid md:grid-cols-2 gap-8">
+
+                <!-- Sub-step 3a -->
+                <div class="space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div style="min-width:30px;height:30px;border-radius:8px;background:rgba(232,121,249,0.15);border:1.5px solid rgba(232,121,249,0.4);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#e879f9;">3a</div>
+                        <p class="font-semibold text-slate-100">Navigate to Credentials → Create Credentials</p>
+                    </div>
+                    <p class="text-slate-400 text-sm leading-relaxed pl-10">From the left sidebar, click <strong class="text-white">Credentials</strong>. Then choose <strong class="text-white">+ CREATE CREDENTIALS</strong> and select <em>OAuth client ID</em> (circled in red).</p>
+                    <div class="screenshot-frame">
+                        <img src="assets/createcred.png" alt="Credentials page with Create Credentials button and client ID option circled">
+                        <div class="screenshot-caption">APIs & Services → Credentials</div>
+                        <div class="highlight-badge">Select: client ID</div>
+                    </div>
+                </div>
+
+                <!-- Sub-step 3b -->
+                <div class="space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div style="min-width:30px;height:30px;border-radius:8px;background:rgba(232,121,249,0.15);border:1.5px solid rgba(232,121,249,0.4);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#e879f9;">3b</div>
+                        <p class="font-semibold text-slate-100">Select "Desktop app" then click CREATE</p>
+                    </div>
+                    <p class="text-slate-400 text-sm leading-relaxed pl-10">On the creation form, set Application type to <strong class="text-white">Desktop app</strong>. Leave the name as default (<em>Desktop client 1</em>) and click <strong class="text-white">CREATE</strong>.</p>
+                    <div class="screenshot-frame">
+                        <img src="assets/createOauth.png" alt="Create OAuth client ID form with Desktop app selected and CREATE button circled">
+                        <div class="screenshot-caption">Create OAuth Client ID Form</div>
+                        <div class="highlight-badge">Desktop App ✓</div>
+                    </div>
+                </div>
+
+                <!-- Sub-step 3c: Download JSON -->
+                <div class="space-y-4 md:col-span-2">
+                    <div class="flex items-center gap-3">
+                        <div style="min-width:30px;height:30px;border-radius:8px;background:rgba(232,121,249,0.15);border:1.5px solid rgba(232,121,249,0.4);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#e879f9;">3c</div>
+                        <p class="font-semibold text-slate-100">Download the JSON secret file</p>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-slate-400 text-sm leading-relaxed mb-4 pl-10">
+                                Back on the Credentials list, find your newly created <em>Desktop client 1</em>. Click the <strong class="text-white">Download icon ⬇</strong> (circled in red) to get the JSON file.
+                            </p>
+                            <div class="callout callout-danger ml-10">
+                                <strong>Critical:</strong> Rename the downloaded file to <code style="background:rgba(248,113,113,0.15);padding:1px 6px;border-radius:4px;">client_secrets.json</code> and place it inside <code style="background:rgba(248,113,113,0.15);padding:1px 6px;border-radius:4px;">config/</code> in your project.
+                            </div>
+                        </div>
+                        <div class="screenshot-frame">
+                            <img src="assets/APIServices.png" alt="Credentials list with Download icon circled in red for Desktop client 1">
+                            <div class="screenshot-caption">Credentials → Download JSON</div>
+                            <div class="highlight-badge">Download ⬇</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- connector -->
+    <div class="connector h-10 w-0.5 mx-auto opacity-40"></div>
+
+    <!-- ─── Step 4: Configure settings.yaml ─── -->
+    <section id="integration" class="step-section glass rounded-3xl overflow-hidden">
+        <div style="background:linear-gradient(90deg,rgba(52,211,153,0.1),transparent);border-bottom:1px solid rgba(52,211,153,0.15);padding:20px 36px;display:flex;align-items:center;gap:16px;">
+            <div class="step-badge" style="background:linear-gradient(135deg,#34d399,#059669);">4</div>
+            <div>
+                <p style="font-size:0.7rem;font-weight:700;color:#34d399;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:2px;">Step 04 — Final</p>
+                <h2 style="font-size:1.6rem;font-weight:800;color:#f1f5f9;margin:0;">Install PyDrive & Configure settings.yaml</h2>
+            </div>
+        </div>
+
+        <div style="padding:36px;">
+            <p class="text-slate-300 text-lg leading-relaxed mb-8">
+                With the JSON downloaded, the last step is to tell PyDrive <em>where</em> to find it, and configure it to <strong class="text-white">persist the token</strong> so the Pi never needs browser interaction again.
+            </p>
+
+            <div class="grid lg:grid-cols-2 gap-10">
+
+                <!-- Left side: install + yaml -->
+                <div class="space-y-8">
+
+                    <!-- Install command -->
+                    <div>
+                        <p class="text-sm font-bold text-emerald-400 uppercase tracking-widest mb-3">1. Install PyDrive</p>
+                        <div class="terminal-line">pip install pydrive</div>
+                    </div>
+
+                    <!-- Find credentials -->
+                    <div>
+                        <p class="text-sm font-bold text-emerald-400 uppercase tracking-widest mb-2">2. Get your client_id & secret</p>
+                        <p class="text-slate-400 text-sm leading-relaxed mb-4">
+                            Click the <strong class="text-white">Edit (pencil) icon</strong> on your credential (circled below) to reveal your <code style="background:rgba(52,211,153,0.12);color:#6ee7b7;padding:2px 6px;border-radius:5px;">client_id</code> and <code style="background:rgba(52,211,153,0.12);color:#6ee7b7;padding:2px 6px;border-radius:5px;">client_secret</code>.
+                        </p>
+                        <div class="screenshot-frame">
+                            <img src="assets/client_id.png" alt="Credentials list with Edit pencil icon circled in red">
+                            <div class="screenshot-caption">Credentials → Edit → Copy credentials</div>
+                            <div class="highlight-badge">Pencil icon ✏️</div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right side: YAML config -->
+                <div class="space-y-6">
+                    <div>
+                        <p class="text-sm font-bold text-emerald-400 uppercase tracking-widest mb-3">3. Edit config/settings.yaml</p>
+                        <p class="text-slate-400 text-sm mb-4">Create or update this file in your project's <code class="text-emerald-300">config/</code> folder. Replace the placeholder values with your actual credentials:</p>
+                        <div class="code-block">
+<pre><span style="color:#64748b;"># config/settings.yaml</span>
+<span style="color:#f0abfc;">client_config_backend</span><span style="color:#94a3b8;">:</span> settings
+<span style="color:#f0abfc;">client_config</span><span style="color:#94a3b8;">:</span>
+  <span style="color:#f0abfc;">client_id</span><span style="color:#94a3b8;">:</span>     <span style="color:#fcd34d;">your_client_id_here</span>
+  <span style="color:#f0abfc;">client_secret</span><span style="color:#94a3b8;">:</span> <span style="color:#fcd34d;">your_client_secret_here</span>
+
+<span style="color:#f0abfc;">save_credentials</span><span style="color:#94a3b8;">:</span>         <span style="color:#86efac;">True</span>
+<span style="color:#f0abfc;">save_credentials_backend</span><span style="color:#94a3b8;">:</span> file
+<span style="color:#f0abfc;">save_credentials_file</span><span style="color:#94a3b8;">:</span>   credentials.json
+<span style="color:#f0abfc;">get_refresh_token</span><span style="color:#94a3b8;">:</span>        <span style="color:#86efac;">True</span>
+
+<span style="color:#f0abfc;">oauth_scope</span><span style="color:#94a3b8;">:</span>
+  <span style="color:#94a3b8;">-</span> <span style="color:#7dd3fc;">https://www.googleapis.com/auth/drive.file</span></pre>
+                        </div>
+                    </div>
+
+                    <div class="callout callout-info">
+                        <strong>How it works:</strong> The first time you run <code>python src/main.py</code>, a browser tab will open asking you to sign in with Google. After granting permission, PyDrive saves a <code>credentials.json</code> token file. All future runs — including headless Pi reboots — will silently reuse this token. 🎉
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Final checklist -->
+            <div style="margin-top:48px;padding:32px;border-radius:20px;background:linear-gradient(135deg,rgba(52,211,153,0.08),rgba(56,189,248,0.06));border:1px solid rgba(52,211,153,0.2);">
+                <h3 style="font-size:1.2rem;font-weight:700;color:#f1f5f9;margin-bottom:20px;display:flex;align-items:center;gap:10px;">
+                    <span>✅</span> Deployment Checklist
+                </h3>
+                <div class="grid md:grid-cols-3 gap-4 text-sm text-slate-400">
+                    <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.06);">
+                        <p style="font-weight:700;color:#34d399;margin-bottom:6px;">File Placement</p>
+                        <code style="font-size:0.78rem;color:#94a3b8;">config/client_secrets.json</code><br>
+                        <code style="font-size:0.78rem;color:#94a3b8;">config/settings.yaml</code>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.06);">
+                        <p style="font-weight:700;color:#34d399;margin-bottom:6px;">First Run</p>
+                        <p>Execute <code style="font-size:0.78rem;">python src/main.py</code> once locally to authenticate in browser</p>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.06);">
+                        <p style="font-weight:700;color:#34d399;margin-bottom:6px;">On the Pi</p>
+                        <p>Copy <code style="font-size:0.78rem;">credentials.json</code> to <code style="font-size:0.78rem;">config/</code> — the Pi will use it silently forever</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ======================== FOOTER ======================== -->
+<footer style="border-top:1px solid rgba(255,255,255,0.05);background:rgba(0,0,0,0.3);padding:60px 24px 40px;text-align:center;">
+    <div class="max-w-4xl mx-auto">
+        <div style="display:inline-flex;align-items:center;gap:10px;margin-bottom:16px;">
+            <div style="width:36px;height:36px;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            </div>
+            <span style="font-size:1.2rem;font-weight:700;background:linear-gradient(90deg,#38bdf8,#818cf8);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">Bioacoustic Edge Sync</span>
+        </div>
+        <p style="color:#475569;font-size:0.9rem;margin-bottom:24px;">Built by Milanto — Remote Edge Data Architecture</p>
+        <div style="display:flex;justify-content:center;gap:32px;flex-wrap:wrap;">
+            <a href="https://github.com/milanto-hery/bioacoustic-edge-sync" target="_blank" style="color:#64748b;font-size:0.85rem;text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='#f1f5f9'" onmouseout="this.style.color='#64748b'">View Source on GitHub →</a>
+            <a href="https://github.com/milanto-hery/bioacoustic-edge-sync/tree/main/config" target="_blank" style="color:#64748b;font-size:0.85rem;text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='#f1f5f9'" onmouseout="this.style.color='#64748b'">Config Files →</a>
+            <a href="https://github.com/milanto-hery/bioacoustic-edge-sync/tree/main/src" target="_blank" style="color:#64748b;font-size:0.85rem;text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='#f1f5f9'" onmouseout="this.style.color='#64748b'">Python Source →</a>
+        </div>
+    </div>
+</footer>
+
+</body>
+</html>
